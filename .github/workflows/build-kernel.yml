@@ -33,12 +33,6 @@ jobs:
           git log --oneline -1
           
           cd ..
-          
-          echo "=== Verifying KernelSU structure ==="
-          ls -la KernelSU/kernel/ | head -20
-          
-          echo "=== Verifying drivers/kernelsu symlink ==="
-          file drivers/kernelsu
 
       - name: Install build dependencies
         run: |
@@ -46,12 +40,18 @@ jobs:
           sudo apt-get install -y bc bison build-essential cpio curl flex git \
               libncurses5-dev libssl-dev libelf-dev lz4 \
               python3 unzip wget xz-utils zip zstd device-tree-compiler \
-              gcc-aarch64-linux-gnu
+              gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf
 
       - name: Build Kernel (bonito - Pixel 3XL)
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
+          export CROSS_COMPILE_ARM32=arm-linux-gnueabihf-
+          
+          echo "=== Environment ==="
+          echo "ARCH: $ARCH"
+          echo "CROSS_COMPILE: $CROSS_COMPILE"
+          echo "CROSS_COMPILE_ARM32: $CROSS_COMPILE_ARM32"
           
           echo "=== Generating defconfig ==="
           make bonito_defconfig
@@ -73,12 +73,11 @@ jobs:
           path: arch/arm64/boot/
           retention-days: 30
 
-      - name: Upload on failure (logs)
+      - name: Upload build log on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs-${{ github.run_number }}
+          name: build-log-${{ github.run_number }}
           path: |
             .config
-            build.log
           retention-days: 7
