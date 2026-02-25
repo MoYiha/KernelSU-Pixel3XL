@@ -12,11 +12,33 @@ jobs:
     timeout-minutes: 180
 
     steps:
-      - name: Checkout code
+      - name: Checkout kernel code
         uses: actions/checkout@v4
         with:
           submodules: false
           fetch-depth: 0
+
+      - name: Download KernelSU with specific commit
+        run: |
+          echo "=== Cloning KernelSU ==="
+          git clone https://github.com/tiann/KernelSU.git KernelSU
+          
+          cd KernelSU
+          
+          echo "=== Checking out compatible version ==="
+          git fetch origin d78f24098a53671364953693972f4e9f7dd2c4b0
+          git checkout d78f24098a53671364953693972f4e9f7dd2c4b0
+          
+          echo "=== KernelSU version ==="
+          git log --oneline -1
+          
+          cd ..
+          
+          echo "=== Verifying KernelSU structure ==="
+          ls -la KernelSU/kernel/ | head -20
+          
+          echo "=== Verifying drivers/kernelsu symlink ==="
+          file drivers/kernelsu
 
       - name: Install build dependencies
         run: |
@@ -26,38 +48,37 @@ jobs:
               python3 unzip wget xz-utils zip zstd device-tree-compiler \
               gcc-aarch64-linux-gnu
 
-      - name: Prepare build config
-        run: |
-          # 使用仓库内的 build config
-          ls -la build.config.* | head -20
-
-      - name: Build Kernel for Pixel 3XL
+      - name: Build Kernel (bonito - Pixel 3XL)
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           
-          # 使用 Makefile 直接编译
-          make bluecross_defconfig 2>/dev/null || make help | grep -i defconfig || true
+          echo "=== Generating defconfig ==="
+          make bonito_defconfig
           
-          # 如果没有 defconfig，尝试手动设置
-          if [ ! -f .config ]; then
-            echo "Creating minimal .config..."
-            make ARCH=arm64 defconfig
-          fi
-          
-          # 编译内核
-          make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
+          echo "=== Building kernel ==="
+          make -j$(nproc)
 
       - name: Check build output
         run: |
-          echo "=== Build Output ==="
+          echo "=== Build artifacts ==="
           ls -lh arch/arm64/boot/
-          file arch/arm64/boot/Image* || echo "Image not found"
+          file arch/arm64/boot/Image* || echo "Image files not found"
 
       - name: Upload artifacts
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: pixel-3xl-kernel
+          name: pixel-3xl-kernel-${{ github.run_number }}
           path: arch/arm64/boot/
-          retention-days: 90
+          retention-days: 30
+
+      - name: Upload on failure (logs)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ github.run_number }}
+          path: |
+            .config
+            build.log
+          retention-days: 7
