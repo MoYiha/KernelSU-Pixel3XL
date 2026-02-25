@@ -26,8 +26,8 @@ jobs:
           cd KernelSU
           
           echo "=== Checking out compatible version ==="
-          git fetch origin d78f24098a53671364953693972f4e9f7dd2c4b0
-          git checkout d78f24098a53671364953693972f4e9f7dd2c4b0
+          git fetch origin b766b98513b5a7eb33bc1c4a76b5702bf1288f07
+          git checkout b766b98513b5a7eb33bc1c4a76b5702bf1288f07
           
           echo "=== KernelSU version ==="
           git log --oneline -1
