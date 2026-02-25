@@ -29,9 +29,6 @@ jobs:
           git fetch origin d78f24098a53671364953693972f4e9f7dd2c4b0
           git checkout d78f24098a53671364953693972f4e9f7dd2c4b0
           
-          echo "=== KernelSU version ==="
-          git log --oneline -1
-          
           cd ..
 
       - name: Install build dependencies
@@ -41,42 +38,34 @@ jobs:
               libncurses5-dev libssl-dev libelf-dev lz4 \
               python3 unzip wget xz-utils zip zstd device-tree-compiler \
               gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf
-          
-          # 安装最新可用的 clang
-          sudo apt-get install -y clang llvm lld
-
-      - name: Check Clang version
-        run: |
-          clang --version
-          which clang
-          which llvm-ar || which llvm-ar-15 || which llvm-ar-14 || echo "llvm-ar not found"
 
       - name: Build Kernel (bonito - Pixel 3XL)
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           export CROSS_COMPILE_ARM32=arm-linux-gnueabihf-
-          export CC=clang
-          export LD=ld.lld
           export KBUILD_BUILD_USER=builder
           export KBUILD_BUILD_HOST=github
-          
-          echo "=== Environment ==="
-          echo "ARCH: $ARCH"
-          echo "CROSS_COMPILE: $CROSS_COMPILE"
-          echo "CC: $CC"
-          clang --version
           
           echo "=== Generating defconfig ==="
           make bonito_defconfig
           
+          echo "=== Disabling CONFIG_LTO_CLANG ==="
+          # 下载 kconfig 工具或手动编辑
+          if [ -f scripts/config ]; then
+            scripts/config --disable CONFIG_LTO_CLANG
+          else
+            # 手动修改 .config
+            sed -i 's/CONFIG_LTO_CLANG=y/# CONFIG_LTO_CLANG is not set/g' .config
+          fi
+          
           echo "=== Building kernel ==="
-          make -j$(nproc) 2>&1 | head -200
+          make -j$(nproc)
 
       - name: Check build output
         run: |
           echo "=== Build artifacts ==="
-          ls -lh arch/arm64/boot/ 2>/dev/null || echo "Output dir not found yet"
+          ls -lh arch/arm64/boot/
 
       - name: Upload artifacts
         if: success()
